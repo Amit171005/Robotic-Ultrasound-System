@@ -1,87 +1,50 @@
-# Robotic-Ultrasound-System
-Autonomous Robotic Ultrasound Scanner
+# Robotic System for Abdominal Ultrasound Scanning
 
-B.Tech Project (BTP), Department of Mechanical Engineering, IIT Guwahati Author: Amit Kumar · Supervisor: Prof. S. K. Dwivedy
+This B.Tech project explores whether an ultrasound probe can follow a curved abdominal surface and measure its shape by touch. The design pairs a four-motor Cartesian gantry with a passive wrist that tilts about the center of the probe face. A tilt sensor on the wrist supplies a local slope estimate for the proposed scan planner.
 
-A low-DOF robotic manipulator that positions an ultrasound probe and scans a phantom on its own: it finds the phantom, plans a coverage sweep, keeps the probe normal to the surface and regulates the contact force, with no operator in the loop.
+**Author** · Amit Kumar, Department of Mechanical Engineering, IIT Guwahati  
+**Supervisor** · Prof. S. K. Dwivedy  
+**Project status** · Phase I covered mechanical design, Fusion CAD motion and interference checks, actuator sizing, and analytical performance estimates. Fabrication, ROS 2 implementation, and gelatin-phantom tests are planned for Phase II.
 
-The project builds on an existing teleoperated ultrasound arm developed in an earlier PhD project at IIT Guwahati. The first phase of this BTP is a full engineering review of that arm, judged against the new goal of autonomous scanning, and a costed set of modifications that make autonomy feasible.
+## Why a gantry and a passive wrist?
 
-Status
-Phase	State
-Design review of the existing arm (statics, accuracy, workspace, orientation)	✅ Done (revision B, Oct 2026)
-Component selection and cost estimate	✅ Done (revision B)
-Hardware modifications (Option A)	⏳ Planned
-Calibration, perception and force control	⏳ Planned
-Autonomous path planning and coverage scanning	⏳ Planned
-The existing arm
-4 actuated joints (the original report calls it 5-DOF):
-Axis 1 – base yaw: NEMA-42 stepper, direct drive, SKF 51209 thrust bearing
-Axis 2 – shoulder: NEMA-42 stepper, direct drive, 2 × SKF 16002
-Axes 3–4 – elbow / wrist: DS5180 hobby servos, direct drive
-Measured joint spacings (drawing sheet 11): shoulder–elbow 379 mm, elbow–wrist 372 mm, wrist to probe-axis bend 328.8 mm, bend to probe tip 207 mm; shoulder axis 275 mm above the base.
-Overall envelope: 901 × 445.5 × 765 mm.
-Key findings
+The four-joint arm originally available in the lab needed 13.6 N·m of shoulder torque in the evaluated pose, against about 8.4 N·m available. It also lacked sideways probe tilt. A Cartesian gantry transfers the structural loads to linear guides and gives the probe three axes of translation.
 
-All numbers are from revision B of the calculations (realistic link masses, 0.80 kg end-effector).
+An early gantry design used three wrist servos. Its tilt center sat 85 mm above the probe face, so an 18° tilt shifted the face sideways by about 26 mm. In the final design, two perpendicular circular guides share a center at the probe face. The bearings and guides sit above the surface, but the probe rotates about that virtual center. Ideally, the center of the face stays at the same point as the probe tilts.
 
-Check	As designed	With Option A
-Holding torque needed, shoulder (drawn pose / links horizontal)	13.6 / 25.0 N·m vs ≈8.4 N·m usable	Covered (geared NEMA-34 + brake)
-Scan zone holdable (r 400–750 mm, z 100–300 mm, probe vertical)	0 %	100 %
-Base tilting moment vs thrust-bearing capacity	18.7–28 N·m vs 3.9 N·m	Crossed-roller bearing
-Probe-tip error (RSS)	13.0 mm	5.0 mm open loop, 1.7 mm with joint-encoder loops
+## How the scanner is designed to work
 
-Autonomy-specific checks
+| Assembly | Function |
+| --- | --- |
+| Gantry | Belt drives move X and Y. Two X motors home independently to square the bridge. A lead screw drives Z. Together the three translation axes use four stepper motors. |
+| Self-aligning wrist | When one edge of the probe touches first, the contact force creates a moment that tilts the probe. Balance springs return the wrist toward upright when the gantry lifts it. |
+| Force stage | A spring-loaded slider above the wrist accommodates vertical displacement. A load cell measures spring reaction for estimating contact force and providing Z-axis feedback. |
+| Touch mapping | Gantry position and spring compression locate each contact point. An inertial measurement unit (IMU) measures the settled probe angle to estimate the local surface slope. |
 
-The probe contact force that cancels gravity torque (≈7–20 N at the shoulder) falls inside the 5–20 N scanning range, so the gear play is crossed while scanning → position loops on output-side joint encoders are required.
-With the robot beside the phantom, 96 % of the upper surface needs ≤10° of sideways tilt, which these joints cannot produce. The probe is exactly normal on 51 % of the surface and within 15° on 71 %. Placing the robot at the phantom's end drops this to 21 % within 10°.
-Three load cells on a Ø50 mm circle can estimate both contact force and contact offset (a 3 mm offset at 10 N shifts the cell readings by 0.8 N).
+## Phase I design results
 
-Verdict: the arm as designed cannot perform the autonomous scanning task. With Option A and the autonomy additions it is feasible at phantom level: phantom localisation, coverage sweeps with in-plane normal alignment, ±1 N force regulation and ≈1.7 mm tip error.
+| Quantity | Design value or calculated result |
+| --- | --- |
+| X × Y × Z travel | 580 × 500 × 250 mm |
+| Passive wrist tilt | ±40° about Y and ±25° about X |
+| Target contact-force range | 5–20 N |
+| Typical predicted probe-face error | 0.83 mm in X and 0.59 mm in Y at 10 N, with 20° across-surface and 10° along-surface tilt |
+| Worst analyzed probe-face error | 2.57 mm in X and 1.96 mm in Y at 20 N and the wrist’s tilt limits |
+| Estimated parts cost | ₹78,245, including the stands and phantom materials. The estimate excludes the ultrasound machine, laptop, tools, and workshop time. |
 
-Option A – recommended modifications
-#	Change
-A1	Base: RU66 crossed-roller bearing + geared NEMA-23 (50:1) + flexible coupling
-A2	Shoulder: NEMA-34 (8.5 N·m) + 10:1 planetary + 24 V brake (output limited ≈38 N·m)
-A3	EN19 shaft, k5/H7 fit, clamp hub
-A4	3:1 HTD belt reduction at the elbow
-A5	Three load cells over a 0.5–1 N/mm spring stage (force + two tilt moments) instead of a 6-axis F/T sensor
-A6	AS5048A encoders on all four joints after the gearboxes, position loops, homing
-A7	Servo PWM ≥330 Hz
-A8	Bolted base
-A9	Safety: brakes, hold-then-brake E-stop, 25 N force limit, watchdog
-A10	Optional probe-roll servo
-A11	Depth camera + hand-eye calibration, or touch-probing a known phantom (≈25 points, ≈4–5 min)
-A12	USB video capture of the ultrasound image
-Cost estimate
+Bending of the 6 mm guide rods in the force stage dominates the predicted positioning error. The wrist also introduces a separate uncertainty in the touch map. With an 18 mm probe footprint, the model predicts that the narrow-axis stage follows only about 43% of the surface slope under the assumed contact conditions. The IMU reads this settled angle, which makes calibration against known slopes an important part of the experiment.
 
-Prices as of 12–13 Oct 2026, excluding the ultrasound probe and PC.
+## Planned scan and validation
 
-Build	Estimate	Machined free of cost
-As designed	₹1.65–4.08 lakh	₹1.56–3.63 lakh
-Recommended (Option A + autonomy, incl. depth camera)	₹1.68–2.77 lakh	₹1.57–2.22 lakh (₹1.13–1.78 lakh without camera)
-Lean (touch-probing, economy base gearbox + output encoder, AS5600, Teensy 4.0, MS-pipe housing)	₹0.86–1.62 lakh	₹0.77–1.20 lakh
+1. Home the axes, zero the load cell, and establish the IMU reference on a level surface.
+2. Touch a grid of points on a gelatin phantom. Record position, probe tilt, and force at each point.
+3. Fit a surface in ROS 2 and plan overlapping back-and-forth sweeps within the wrist’s tilt range.
+4. Follow the sweeps with Z-axis force feedback and record each ultrasound frame with probe position and force.
 
-The 6-axis F/T sensor alone in the original design costs ₹0.87–2.40 lakh landed. A ₹50,000 build is not reachable with this arm.
+Bench tests will calibrate the force stage and verify the overtravel cutoff. Phantom experiments will measure angular tracking in both wrist stages, touch-map accuracy, force variation, and scan coverage.
 
-Assumptions: customs exchange rates of 2 Oct 2026 (US$ 96.95, € 110.50, CNY 14.55); import uplift 1.20 (institute) to 1.65 (personal courier); machining ₹300–1,000/h.
+## Project documents
 
-Repository contents
-├── README.md
-├── calc.py                                       # all design calculations (statics, workspace, error budget, orientation)
-├── docs/
-│   ├── arm-design-review-findings.md             # summary of the review
-│   ├── Robotic_US_Arm_Design_Calculations.pdf    # full calculation report
-│   └── Robotic_US_Arm_Components_and_Feasibility.pdf
-└── cost/
-    └── Robotic_US_Arm_Cost_Estimate.xlsx         # itemised costs for all three builds
-Running the calculations
-bash
-python calc.py
-Roadmap
-Build and assemble Option A (or the lean variant).
-Joint encoders, homing and closed-loop joint control.
-Phantom localisation (depth camera + hand-eye calibration, or touch-probing).
-Three-load-cell force sensing and ±1 N contact-force regulation.
-Coverage path planning over the phantom surface with in-plane normal alignment.
-Synchronised ultrasound image capture along the scan path.
+- `BTP_Report_Overleaf.pdf` contains the load cases, design calculations, error budget, and cost breakdown.
+- `BTP_Phase1_Presentation.pptx` summarizes the design evolution, CAD motion study, and Phase I results.
+- `Self_Aligning_Sensing_Wrist_Concept_Guide.pdf` illustrates the virtual pivot, spring placement, and touch-mapping concept.
